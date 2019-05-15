@@ -1,0 +1,224 @@
+CREATE (a:Person { name: "A"}) 
+CREATE (b:Person { name: "B"}) 
+CREATE (c:Person { name: "C"}) 
+CREATE (d:Person { name: "D"}) 
+CREATE (e:Person { name: "E"}) 
+RETURN a,b,c,d,e
+
+CREATE CONSTRAINT ON (p:Name) ASSERT p.Name IS UNIQUE
+
+-- A -> B
+MATCH (a:Person),(b:Person)
+WHERE a.name = "A" AND b.name = "B"
+CREATE (a)-[r:LIKES]->(b)
+RETURN r
+
+-- B -> A
+MATCH (a:Person),(b:Person)
+WHERE a.name = "A" AND b.name = "B"
+CREATE (b)-[r:LIKES]->(a)
+RETURN r
+
+-- C -> B
+MATCH (c:Person),(b:Person)
+WHERE c.name = "C" AND b.name = "B"
+CREATE (c)-[r:LIKES]->(b)
+RETURN r
+
+-- C -> D
+MATCH (c:Person),(d:Person)
+WHERE c.name = "C" AND d.name = "D"
+CREATE (c)-[r:LIKES]->(d)
+RETURN r
+
+
+-- find by likes
+MATCH (p:Person)-[:LIKES]->(:Person)<-[:LIKES]-(lookALiker:Person)-[:LIKES]->(potential:Person)
+WHERE p.name = "A" AND p <> lookALiker
+RETURN potential
+------------------------------------------------------------------------------------------
+
+
+-- A -> B: 7 
+MATCH (a:Person),(b:Person)
+WHERE a.name = "A" AND b.name = "B"
+CREATE (a)-[r:DATED {rate:7}]->(b)
+RETURN r
+
+-- C -> B: 7
+MATCH (c:Person),(b:Person)
+WHERE c.name = "C" AND b.name = "B"
+CREATE (c)-[r:DATED {rate:7}]->(b)
+RETURN r
+
+-- C -> D: 8
+MATCH (c:Person),(d:Person)
+WHERE c.name = "C" AND d.name = "D"
+CREATE (c)-[r:DATED {rate:8}]->(d)
+RETURN r
+
+-- C -> E: 6
+MATCH (c:Person),(e:Person)
+WHERE c.name = "C" AND e.name = "E"
+CREATE (c)-[r:DATED {rate:6}]->(e)
+RETURN r
+
+-- find by date rate
+MATCH (p:Person)-[pDate:DATED]->(:Person)<-[sameDate:DATED]-(sameDater:Person)-[potentialDate:DATED]->(potential:Person)
+WHERE p.name = "A" AND p <> sameDater AND pDate.rate >= 7 AND sameDate.rate = pDate.rate AND potentialDate.rate > pDate.rate
+RETURN potential
+------------------------------------------------------------------------------------------
+
+CREATE (a:Topic { name: "Movies"}) 
+CREATE (b:Topic { name: "Golf"}) 
+CREATE (c:Topic { name: "Neo4j"}) 
+CREATE (d:Topic { name: "Literature"}) 
+CREATE (e:Topic { name: "Programming"}) 
+RETURN a,b,c,d,e
+
+
+-- A,B -> Movies
+MATCH (p:Person), (t:Topic)
+WHERE (p.name = "A" OR p.name = "B") AND t.name = "Movies"
+CREATE (p)-[r:INTERESTED_IN]->(t)
+RETURN r
+
+-- C -> Gold
+MATCH (p:Person), (t:Topic)
+WHERE (p.name = "C") AND t.name = "Golf"
+CREATE (p)-[r:INTERESTED_IN]->(t)
+RETURN r
+
+-- A,B,E -> Neo
+MATCH (p:Person), (t:Topic)
+WHERE (p.name = "A" OR p.name = "B" OR p.name = "E") AND t.name = "Neo4j"
+CREATE (p)-[r:INTERESTED_IN]->(t)
+RETURN r
+
+-- C,D -> Lit
+MATCH (p:Person), (t:Topic)
+WHERE (p.name = "C" OR p.name = "D") AND t.name = "Literature"
+CREATE (p)-[r:INTERESTED_IN]->(t)
+RETURN r
+
+-- A,B,C,D,E -> Pro
+MATCH (p:Person), (t:Topic)
+WHERE t.name = "Programming"
+CREATE (p)-[r:INTERESTED_IN]->(t)
+RETURN r
+
+-- find by interest
+MATCH (p:Person)-[i:INTERESTED_IN]->(t:Topic)<-[:INTERESTED_IN]-(sameInterest:Person)
+WHERE p.name = "A" AND p <> sameInterest
+RETURN sameInterest as potential, COLLECT(DISTINCT t.name) as Interests
+------------------------------------------------------------------------------------------
+
+CREATE (a:Type { name: "Latino"}) 
+CREATE (b:Type { name: "Blondie"}) 
+CREATE (c:Type { name: "Intellectual"}) 
+RETURN a,b,c
+
+-- D -> Blondie
+MATCH (p:Person), (type:Type)
+WHERE p.name = "D" AND type.name = "Blondie"
+CREATE (p)-[r:IS_OF_TYPE]->(type)
+RETURN r
+
+-- find by likes on type
+MATCH (p:Person)-[:LIKES]->(:Person)<-[:LIKES]-(lookALiker:Person)-[:LIKES]->(potential:Person)
+WHERE p.name = "A" AND p <> lookALiker
+WITH potential
+MATCH (potential)-[:IS_OF_TYPE]->(t:Type)
+WHERE t.name = "Blondie"
+RETURN potential
+
+------------------------------------------------------------------------------------------
+
+CREATE (c { name: "Courageous" })-[:IS_RELATED_TO]->(d {name : "Daring"})-[:IS_RELATED_TO]->(b {name : "Brave"})
+CREATE (s { name: "Sentimentality" })-[:IS_RELATED_TO]->(a {name : "Affection"})
+CREATE (cu { name: "Cunning" })-[:IS_RELATED_TO]->(i {name : "Immoral"})-[:IS_RELATED_TO]->(v {name : "Vengeful"})-[:IS_RELATED_TO]->( {name : "Maniacal"})-[:IS_RELATED_TO]->(cu)
+MATCH(c)-[:IS_RELATED_TO]-() SET c:Characteristic RETURN c
+
+-- D -> Cunning
+MATCH (p:Person), (c:Characteristic)
+WHERE p.name = "D" AND (c.name = "Cunning" OR c.name = "Brave") 
+CREATE (p)-[r:HAS_CHARACTERISTIC ]->(c)
+RETURN r
+
+-- find by characteristics
+MATCH path= (p:Person)-[:HAS_CHARACTERISTIC]->()-[:IS_RELATED_TO*0..1]-(c:Characteristic)
+WHERE c.name = "Maniacal"
+RETURN path
+
+-- find by date rate on characteristics
+MATCH (p:Person)-[pDate:DATED]->(:Person)<-[sameDate:DATED]-(sameDater:Person)-[potentialDate:DATED]->(potential:Person)
+WHERE p.name = "A" AND p <> sameDater AND pDate.rate >= 7 AND sameDate.rate = pDate.rate AND potentialDate.rate > pDate.rate
+WITH potential
+MATCH (potential)-[:HAS_CHARACTERISTIC]->()-[:IS_RELATED_TO*0..1]-(c:Characteristic)
+WHERE c.name = "Maniacal"
+RETURN potential
+
+------------------------------------------------------------------------------------------
+
+MATCH (p:Person {name: "A"})
+SET p.gender = "M", p.genderPreference = ["F","M"]
+RETURN p
+
+MATCH (p:Person {name: "C"})
+SET p.gender = "M", p.genderPreference = ["F"]
+RETURN p
+
+MATCH (p:Person {name: "B"})
+SET p.gender = "F", p.genderPreference = ["F","M"]
+RETURN p
+
+MATCH (p:Person {name: "D"})
+SET p.gender = "F", p.genderPreference = ["M"]
+RETURN p
+
+MATCH (p:Person {name: "E"})
+SET p.gender = "F", p.genderPreference = ["F"]
+RETURN p
+
+-- find by Liking on genderPreference
+MATCH (p:Person)-[:LIKES]->(:Person)<-[:LIKES]-(lookALiker:Person)-[:LIKES]->(potential:Person)
+WHERE p.name = "A" AND p <> lookALiker AND potential.gender IN p.genderPreference AND p.gender IN potential.genderPreference
+RETURN potential
+
+------------------------------------------------------------------------------------------
+
+MATCH (p:Person {name: "A"})
+CREATE (p)-[:LIVES_IN]->(home:Location {name : "Amsterdam", longitude : 4.8936041, latitude : 52.3727598 })
+RETURN p
+
+MATCH (p:Person {name: "B"})
+CREATE (p)-[:LIVES_IN]->(home:Location {name : "Boekelo", longitude : 6.7994207, latitude : 52.204006 })
+RETURN p, home
+
+MATCH (p:Person {name: "C"})
+CREATE (p)-[:LIVES_IN]->(home:Location {name : "Cabo Frio", longitude : -42.0189227, latitude : -22.8804369 })
+RETURN p, home
+
+MATCH (p:Person {name: "D"})
+CREATE (p)-[:LIVES_IN]->(home:Location {name : "Delft", longitude : 4.35839, latitude : 52.0114017 })
+RETURN p, home
+
+MATCH (p:Person {name: "E"})
+CREATE (p)-[:LIVES_IN]->(home:Location {name : "Enschede", longitude : 6.8940537, latitude : 52.2209855 })
+RETURN p, home
+
+MATCH (l:Location)
+WITH l, point({ longitude: l.longitude, latitude: l.latitude }) AS homes, point({ longitude: 5.1859604, latitude: 52.037247 }) AS utrecht
+RETURN l, toInteger(distance(homes, utrecht)/1000) AS toUtrecht
+
+-- find by likes and distance
+MATCH (p:Person)-[:LIKES]->(:Person)<-[:LIKES]-(lookALiker:Person)-[:LIKES]->(potential:Person)
+WHERE p.name = "A" AND p <> lookALiker
+WITH p, potential
+MATCH (p)-[:LIVES_IN]->(homeP:Location)
+MATCH (potential)-[:LIVES_IN]->(homePotential:Location)
+WITH potential, point({ longitude: homeP.longitude, latitude: homeP.latitude }) AS here, point({ longitude: homePotential.longitude, latitude: homePotential.latitude }) AS there
+WHERE toInteger(distance(here, there)/1000) < 60
+RETURN potential
+
+
